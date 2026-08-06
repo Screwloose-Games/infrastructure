@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "extends": "@repo/typescript-config/base.json",
+  "compilerOptions": {
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "types": ["@cloudflare/workers-types", "@cloudflare/vitest-pool-workers"],
+    "noEmit": true
+  },
+  "include": ["src/**/*", "test/**/*", "vitest.config.ts"],
+  "exclude": ["node_modules", "dist"]
+}

@@ -1,0 +1,8 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "display": "Internal library",
+  "extends": "./base.json",
+  "compilerOptions": {
+    "composite": true
+  }
+}

@@ -141,3 +141,14 @@ dist
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .vite/
+
+# Turborepo
+.turbo/
+
+# TypeScript incremental build info
+*.tsbuildinfo
+
+# Wrangler / Cloudflare local state
+.wrangler/
+.dev.vars
+.dev.vars.*
