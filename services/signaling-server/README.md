@@ -98,7 +98,17 @@ npx wrangler tail                          # live logs
 Note the `run` in `pnpm run deploy`. Bare `pnpm deploy` is pnpm's own built-in
 command and will *not* invoke this script.
 
-Then verify against `wss://game-signaling.<your-subdomain>.workers.dev/session/ABC123`.
+### Currently deployed
+
+<https://game-signaling.repo-signaling-server.workers.dev>
+
+```sh
+curl https://game-signaling.repo-signaling-server.workers.dev/   # -> ok
+npx wscat -c wss://game-signaling.repo-signaling-server.workers.dev/session/ABC123
+```
+
+The Worker is public and unauthenticated — anyone who guesses a six-character
+code can join that session. See *Not implemented* below.
 
 ## Constraints
 

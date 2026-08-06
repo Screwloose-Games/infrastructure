@@ -79,8 +79,51 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      # The repo secret is named CLOUDFLARE_WORKERS_API_TOKEN; wrangler reads
+      # CLOUDFLARE_API_TOKEN. A missing secret is an empty string, not an error,
+      # so check it here rather than letting wrangler fail with a vague 401.
+      - name: Verify Cloudflare credentials are present
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_WORKERS_API_TOKEN }}
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ]; then
+            echo "::error::CLOUDFLARE_WORKERS_API_TOKEN is not set on this repository."
+            exit 1
+          fi
+
       - name: Deploy
         run: pnpm --filter @repo/signaling-server run deploy
         env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_WORKERS_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      # A deploy that reports success but serves nothing is the failure mode we
+      # actually hit by hand, so verify the live URL rather than trusting exit 0.
+      # The retry loop covers workers.dev DNS lag on a freshly-registered subdomain.
+      - name: Smoke test the deployment
+        env:
+          WORKER_URL: https://game-signaling.repo-signaling-server.workers.dev
+        run: |
+          for attempt in $(seq 1 10); do
+            code=$(curl -sS -o /tmp/health -w '%{http_code}' --max-time 15 "$WORKER_URL/" || echo 000)
+            body=$(cat /tmp/health 2>/dev/null || true)
+
+            if [ "$code" = "200" ] && [ "$body" = "ok" ]; then
+              echo "Health check passed on attempt $attempt."
+
+              # A six-character code is required; anything else must 404.
+              bad=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 15 "$WORKER_URL/session/SHORT")
+              if [ "$bad" != "404" ]; then
+                echo "::error::Expected 404 for a malformed session code, got $bad"
+                exit 1
+              fi
+              echo "Session-code validation responding correctly."
+              exit 0
+            fi
+
+            echo "attempt $attempt: HTTP $code (body: '$body')"
+            sleep 10
+          done
+
+          echo "::error::$WORKER_URL never returned 200 ok after 10 attempts."
+          exit 1
