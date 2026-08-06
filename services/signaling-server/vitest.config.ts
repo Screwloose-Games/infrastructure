@@ -1,16 +1,17 @@
 // NOTE: this workspace deliberately does NOT use the shared `@repo/vitest-config`
-// base. `@cloudflare/vitest-pool-workers` requires `defineWorkersConfig` so tests
-// run inside the real workerd runtime with actual Durable Objects. Swapping this
-// for the shared base will break the tests.
-import { defineWorkersConfig } from '@cloudflare/vitest-pool-workers/config'
+// base. `@cloudflare/vitest-pool-workers` runs tests inside the real workerd
+// runtime with actual Durable Objects, which requires its own Vite plugin.
+// Swapping this for the shared base will break the tests.
+//
+// vitest-pool-workers 0.20 replaced the old `defineWorkersConfig` +
+// `test.poolOptions.workers` setup with the `cloudflareTest()` plugin below.
+import { cloudflareTest } from '@cloudflare/vitest-pool-workers'
+import { defineConfig } from 'vitest/config'
 
-export default defineWorkersConfig({
-  test: {
-    poolOptions: {
-      workers: {
-        singleWorker: true,
-        wrangler: { configPath: './wrangler.toml' },
-      },
-    },
-  },
+export default defineConfig({
+  plugins: [
+    cloudflareTest({
+      wrangler: { configPath: './wrangler.toml' },
+    }),
+  ],
 })
