@@ -81,10 +81,16 @@ appears in the other.
 
 ## Deploy
 
-Not wired into CI — deploys are manual and deliberate.
+Automatic. `.github/workflows/deploy-signaling-server.yml` deploys the Worker
+when a change under `services/signaling-server/` lands on `main` and the `CI`
+workflow goes green. It reads `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`
+from the `production` GitHub Environment. The same workflow has a **Run
+workflow** button for redeploying the current `main` on demand.
+
+To deploy by hand:
 
 ```sh
-export CLOUDFLARE_API_TOKEN=...            # from .env at the repo root
+export CLOUDFLARE_API_TOKEN=...            # CLOUDFLARE_WORKERS_API_TOKEN in .env at the repo root
 pnpm --filter @repo/signaling-server run deploy
 npx wrangler tail                          # live logs
 ```
