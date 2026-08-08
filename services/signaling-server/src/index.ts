@@ -178,7 +178,8 @@ function parseSignalingMessage(
   // Our protocol is JSON text. Binary WebSocket frames are not part of it
   if (
     typeof rawMessage !== "string" ||
-    new TextEncoder().encode(rawMessage).byteLength > MAX_SIGNALING_MESSAGE_BYTES
+    new TextEncoder().encode(rawMessage).byteLength >
+      MAX_SIGNALING_MESSAGE_BYTES
   ) {
     return null;
   }
