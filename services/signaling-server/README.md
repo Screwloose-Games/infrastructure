@@ -84,10 +84,16 @@ connection frame, and the host receives `client_joined`.
 
 ## Deploy
 
-Not wired into CI — deploys are manual and deliberate.
+Automatic. `.github/workflows/deploy-signaling-server.yml` deploys the Worker
+when a change under `services/signaling-server/` lands on `main` and the `CI`
+workflow goes green. It reads `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`
+from the `production` GitHub Environment. The same workflow has a **Run
+workflow** button for redeploying the current `main` on demand.
+
+To deploy by hand:
 
 ```sh
-export CLOUDFLARE_API_TOKEN=...            # from .env at the repo root
+export CLOUDFLARE_API_TOKEN=...            # CLOUDFLARE_WORKERS_API_TOKEN in .env at the repo root
 pnpm --filter @repo/signaling-server run deploy
 npx wrangler tail                          # live logs
 ```
@@ -95,8 +101,17 @@ npx wrangler tail                          # live logs
 Note the `run` in `pnpm run deploy`. Bare `pnpm deploy` is pnpm's own built-in
 command and will *not* invoke this script.
 
-Then verify `https://game-signaling.<your-subdomain>.workers.dev/health` and
-connect to `wss://game-signaling.<your-subdomain>.workers.dev/sessions/ABC123/host`.
+### Currently deployed
+
+<https://game-signaling.repo-signaling-server.workers.dev>
+
+```sh
+curl https://game-signaling.repo-signaling-server.workers.dev/health
+npx wscat -c wss://game-signaling.repo-signaling-server.workers.dev/sessions/ABC123/host
+```
+
+The Worker is public and unauthenticated — anyone who guesses a six-character
+code can join that session. See *Not implemented* below.
 
 ## Constraints
 
