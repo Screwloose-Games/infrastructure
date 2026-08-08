@@ -24,6 +24,9 @@ interface ConnectionAttachment {
   // This lets the Durable Object identify each connected socket after waking.
   role: ConnectionRole;
 
+  // Kept with the socket so lifecycle messages remain useful after hibernation.
+  sessionCode: string;
+
   // Useful later for diagnostics and timeouts; not game state.
   connectedAt: number;
 
@@ -175,7 +178,7 @@ function parseSignalingMessage(
   // Our protocol is JSON text. Binary WebSocket frames are not part of it
   if (
     typeof rawMessage !== "string" ||
-    rawMessage.length > MAX_SIGNALING_MESSAGE_LENGTH
+    new TextEncoder().encode(rawMessage).byteLength > MAX_SIGNALING_MESSAGE_BYTES
   ) {
     return null;
   }
