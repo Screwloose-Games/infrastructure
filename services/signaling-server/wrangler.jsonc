@@ -4,7 +4,7 @@
  */
 {
 	"$schema": "node_modules/wrangler/config-schema.json",
-	"name": "signaling-worker",
+	"name": "game-signaling",
 	"main": "src/index.ts",
 	"compatibility_date": "2026-08-05",
 
@@ -14,10 +14,10 @@
 	"durable_objects": {
 		"bindings": [
 			{
-				// The TypeScript class that implements one session coordinator
-				"class_name": "SessionCoordinator",
-				// The name used from Worker code: env.SESSIONS.
-				"name": "SESSIONS",
+				// The existing Durable Object class; retain its identity across deploys.
+				"class_name": "SignalSession",
+				// The name used from Worker code: env.SIGNAL.
+				"name": "SIGNAL",
 			},
 		],
 	},
@@ -41,12 +41,11 @@
 			},
 		},
 	],
-	// Declare the Durable Object class that this Worker exports.
-	//
-	// This is the current declarative lifecycle configuration. The starter used
-	// the older "migrations" array, but that is unnecessary before first deploy.
+	// Declare the existing Durable Object class with Wrangler's current
+	// declarative lifecycle configuration. Keeping this class name preserves the
+	// namespace created by the previous migrations-based configuration.
 	"exports": {
-		"SessionCoordinator": {
+		"SignalSession": {
 			"type": "durable-object",
 
 			// SQLite is Cloudflare's current storage backend for new DO classes.

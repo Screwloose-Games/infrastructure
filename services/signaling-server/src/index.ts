@@ -209,9 +209,9 @@ function parseSignalingMessage(
  * One instance of this class coordination one named session.
  *
  * For example, every request for 7K2QX9 reaches the same logical
- * SessionCoordinator Durable Object.
+ * SignalSession Durable Object.
  */
-export class SessionCoordinator extends DurableObject<Env> {
+export class SignalSession extends DurableObject<Env> {
   /**
    * Finds the currently connected socket for a role, if it exists.
    *
@@ -372,6 +372,7 @@ export class SessionCoordinator extends DurableObject<Env> {
     server.serializeAttachment({
       // Store the role selected from the /host or /join route.
       role,
+      sessionCode: route.sessionCode,
       connectedAt: Date.now(),
       signalWindowStartedAt: Date.now(),
       signalsInWindow: 0,
@@ -560,8 +561,8 @@ export default {
       return rateLimitResponse;
     }
 
-    // Same code -> same SessionCoordinator DO.
-    const session = env.SESSIONS.getByName(route.sessionCode);
+    // Same code -> same SignalSession DO.
+    const session = env.SIGNAL.getByName(route.sessionCode);
 
     // The DO creates the socket pair and returns the browser-facing side.
     return session.fetch(request);
