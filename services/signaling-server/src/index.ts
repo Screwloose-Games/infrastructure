@@ -51,7 +51,10 @@ interface RelayedSignalingMessage extends SignalingMessage {
 }
 
 // Signaling data is small. This is intenionally far below a game-state payload.
-const MAX_SIGNALING_MESSAGE_LENGTH = 64 * 1024;
+const MAX_SIGNALING_MESSAGE_BYTES = 64 * 1024;
+
+/** The host owns the authoritative simulation, so its departure ends a session. */
+export const CLOSE_HOST_DISCONNECTED = 4000;
 
 // A normal WebRTC negotiation sends only a small burst of offer/answer/ICE
 // messages. This leaves room for that burst while cutting off a socket flood.
@@ -508,6 +511,54 @@ export class SignalSession extends DurableObject<Env> {
     };
 
     recipient.send(JSON.stringify(relayedMessage));
+  }
+
+  /**
+   * Restore the session lifecycle guarantees after a hibernating socket closes.
+   * The attachment is the source of truth because ordinary class state does not
+   * survive hibernation.
+   */
+  async webSocketClose(
+    socket: WebSocket,
+    _code: number,
+    _reason: string,
+    _wasClean: boolean,
+  ): Promise<void> {
+    const departed = this.attachmentForSocket(socket);
+    if (departed === null) {
+      return;
+    }
+
+    const remainingRole: ConnectionRole =
+      departed.role === "host" ? "client" : "host";
+    const remaining = this.socketForRole(remainingRole);
+    if (remaining === null) {
+      return;
+    }
+
+    if (departed.role === "host") {
+      remaining.close(CLOSE_HOST_DISCONNECTED, "host disconnected");
+      return;
+    }
+
+    remaining.send(
+      JSON.stringify({
+        type: "client_left",
+        session_code: departed.sessionCode,
+      }),
+    );
+  }
+
+  async webSocketError(socket: WebSocket, error: unknown): Promise<void> {
+    const attachment = this.attachmentForSocket(socket);
+    console.error(
+      JSON.stringify({
+        event: "socket_error",
+        role: attachment?.role,
+        error: String(error),
+      }),
+    );
+    socket.close(1011, "socket error");
   }
 }
 

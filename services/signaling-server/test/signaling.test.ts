@@ -1,8 +1,10 @@
 import { exports } from 'cloudflare:workers';
 import { describe, expect, it } from 'vitest';
+import { CLOSE_HOST_DISCONNECTED } from '../src/index';
 
 // A unique valid code per test prevents session state leaking between tests.
 const SESSION_CODE = 'ABC999';
+let connectionSequence = 1;
 
 /**
  * Waits for exactly one JSON message from a client-side WebSocket.
@@ -17,6 +19,16 @@ function nextJsonMessage(socket: WebSocket): Promise<unknown> {
 			(event) => {
 				resolve(JSON.parse(event.data as string));
 			},
+			{ once: true },
+		);
+	});
+}
+
+function nextClose(socket: WebSocket): Promise<{ code: number; reason: string }> {
+	return new Promise((resolve) => {
+		socket.addEventListener(
+			'close',
+			(event) => resolve({ code: event.code, reason: event.reason }),
 			{ once: true },
 		);
 	});
