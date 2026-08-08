@@ -116,16 +116,16 @@ jobs:
           WORKER_URL: https://game-signaling.repo-signaling-server.workers.dev
         run: |
           for attempt in $(seq 1 10); do
-            code=$(curl -sS -o /tmp/health -w '%{http_code}' --max-time 15 "$WORKER_URL/" || echo 000)
+            code=$(curl -sS -o /tmp/health -w '%{http_code}' --max-time 15 "$WORKER_URL/health" || echo 000)
             body=$(cat /tmp/health 2>/dev/null || true)
 
-            if [ "$code" = "200" ] && [ "$body" = "ok" ]; then
+            if [ "$code" = "200" ] && [ "$body" = '{"status":"ok"}' ]; then
               echo "Health check passed on attempt $attempt."
 
-              # A six-character code is required; anything else must 404.
-              bad=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 15 "$WORKER_URL/session/SHORT")
-              if [ "$bad" != "404" ]; then
-                echo "::error::Expected 404 for a malformed session code, got $bad"
+              # A six-character code is required; anything else must return 400.
+              bad=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 15 "$WORKER_URL/sessions/SHORT")
+              if [ "$bad" != "400" ]; then
+                echo "::error::Expected 400 for a malformed session code, got $bad"
                 exit 1
               fi
               echo "Session-code validation responding correctly."
@@ -136,5 +136,5 @@ jobs:
             sleep 10
           done
 
-          echo "::error::$WORKER_URL never returned 200 ok after 10 attempts."
+          echo "::error::$WORKER_URL/health never returned the expected health response after 10 attempts."
           exit 1
