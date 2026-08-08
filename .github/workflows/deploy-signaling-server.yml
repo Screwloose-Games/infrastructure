@@ -113,7 +113,7 @@ jobs:
       # The retry loop covers workers.dev DNS lag on a freshly-registered subdomain.
       - name: Smoke test the deployment
         env:
-          WORKER_URL: https://game-signaling.repo-signaling-server.workers.dev
+          WORKER_URL: https://signaling.screwloose.workers.dev
         run: |
           for attempt in $(seq 1 10); do
             code=$(curl -sS -o /tmp/health -w '%{http_code}' --max-time 15 "$WORKER_URL/health" || echo 000)

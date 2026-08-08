@@ -13,9 +13,9 @@ session state.
 
 ## Endpoints
 
-| Route                   | Behaviour                                     |
-| ----------------------- | --------------------------------------------- |
-| `GET /health`           | `200 {"status":"ok"}` — health check         |
+| Route                   | Behaviour                                      |
+| ----------------------- | ---------------------------------------------- |
+| `GET /health`           | `200 {"status":"ok"}` — health check           |
 | `GET /sessions/<code>`  | JSON status for the session                    |
 | `/sessions/<code>/host` | WebSocket upgrade; creates the host connection |
 | `/sessions/<code>/join` | WebSocket upgrade; joins a live host           |
@@ -26,12 +26,12 @@ Malformed codes are rejected with `400`.
 
 Rejections before the socket opens:
 
-| Status | Meaning                                       |
-| ------ | --------------------------------------------- |
-| `400`  | Malformed session code                        |
+| Status | Meaning                                          |
+| ------ | ------------------------------------------------ |
+| `400`  | Malformed session code                           |
 | `409`  | No host exists, or that host/client slot is full |
-| `426`  | Request was not a WebSocket upgrade           |
-| `429`  | Request rate limit exceeded                   |
+| `426`  | Request was not a WebSocket upgrade              |
+| `429`  | Request rate limit exceeded                      |
 
 ## Protocol
 
@@ -40,8 +40,8 @@ by the endpoint and never change.
 
 The server sends JSON lifecycle frames:
 
-| Frame                                               | Sent to | When                   |
-| --------------------------------------------------- | ------- | ---------------------- |
+| Frame                                          | Sent to | When                   |
+| ---------------------------------------------- | ------- | ---------------------- |
 | `{"type":"host_connected","session_code":…}`   | host    | immediately on connect |
 | `{"type":"client_connected","session_code":…}` | client  | immediately on connect |
 | `{"type":"client_joined","session_code":…}`    | host    | client connects        |
@@ -55,10 +55,10 @@ WebSocket policy code `1008`.
 
 Close codes:
 
-| Code   | Meaning                                                        |
-| ------ | -------------------------------------------------------------- |
-| `4000` | Host disconnected — the session is over                        |
-| `1008` | Invalid, oversized, or rate-limited signaling frame            |
+| Code   | Meaning                                             |
+| ------ | --------------------------------------------------- |
+| `4000` | Host disconnected — the session is over             |
+| `1008` | Invalid, oversized, or rate-limited signaling frame |
 
 Losing the host ends the session, because the host owns the simulation. Losing
 the client does not: the host keeps playing solo and another client may join.
@@ -99,19 +99,19 @@ npx wrangler tail                          # live logs
 ```
 
 Note the `run` in `pnpm run deploy`. Bare `pnpm deploy` is pnpm's own built-in
-command and will *not* invoke this script.
+command and will _not_ invoke this script.
 
 ### Currently deployed
 
-<https://game-signaling.repo-signaling-server.workers.dev>
+<https://signaling.screwloose.workers.dev>
 
 ```sh
-curl https://game-signaling.repo-signaling-server.workers.dev/health
-npx wscat -c wss://game-signaling.repo-signaling-server.workers.dev/sessions/ABC123/host
+curl https://signaling.screwloose.workers.dev.workers.dev/health
+npx wscat -c wss://signaling.screwloose.workers.dev.workers.dev/sessions/ABC123/host
 ```
 
 The Worker is public and unauthenticated — anyone who guesses a six-character
-code can join that session. See *Not implemented* below.
+code can join that session. See _Not implemented_ below.
 
 ## Constraints
 
@@ -120,7 +120,7 @@ code can join that session. See *Not implemented* below.
 configuration; rename it only with an explicit Durable Object lifecycle change.
 
 This workspace does not use the shared `@repo/vitest-config`; see the comment in
-`vitest.config.ts` for why. Its `tsconfig.json` extends the shared *base* rather
+`vitest.config.ts` for why. Its `tsconfig.json` extends the shared _base_ rather
 than `node.json`, because Node globals conflict with the Workers runtime types.
 
 ## Not implemented
