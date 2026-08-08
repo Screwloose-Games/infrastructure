@@ -81,9 +81,14 @@ function sessionRouteFromPath(pathname: string): SessionRoute | null {
     return null
   }
 
+  const sessionCode = match[1]
+  if (sessionCode === undefined) {
+    return null
+  }
+
   return {
     // Codes are case-insensitive at the HTTP boundary.
-    sessionCode: match[1].toUpperCase(),
+    sessionCode: sessionCode.toUpperCase(),
 
     // No final segment means status. Otherwise select the requested socket role.
     endpoint: match[2] === 'host' ? 'host_socket' : match[2] === 'join' ? 'join_socket' : 'status',
@@ -290,7 +295,7 @@ export class SignalSession extends DurableObject<Env> {
    * Handles requests that the public Worker has already validated and routed
    * to this one session's Durable Object.
    */
-  async fetch(request: Request): Promise<Response> {
+  override async fetch(request: Request): Promise<Response> {
     // The original request URL is still available after Worker forwarding.
     const url = new URL(request.url)
     const route = sessionRouteFromPath(url.pathname)
@@ -343,7 +348,8 @@ export class SignalSession extends DurableObject<Env> {
     // - client: returned to the browser
     // - server: owned by this Durable Object
     const pair = new WebSocketPair()
-    const [client, server] = Object.values(pair)
+    const client = pair[0]
+    const server = pair[1]
 
     // This hibernation-aware API means an idle DO need not stay in memory
     // just because its WebSockets remain connected.
@@ -399,7 +405,10 @@ export class SignalSession extends DurableObject<Env> {
    * Because we used ctx.acceptWebSocket(), Cloudflare invokes this method even
    * after the Durable Object hibernates and wakes back up.
    */
-  async webSocketMessage(socket: WebSocket, rawMessage: string | ArrayBuffer): Promise<void> {
+  override async webSocketMessage(
+    socket: WebSocket,
+    rawMessage: string | ArrayBuffer,
+  ): Promise<void> {
     const sender = this.attachmentForSocket(socket)
 
     if (sender === null) {
@@ -481,7 +490,7 @@ export class SignalSession extends DurableObject<Env> {
    * The attachment is the source of truth because ordinary class state does not
    * survive hibernation.
    */
-  async webSocketClose(
+  override async webSocketClose(
     socket: WebSocket,
     _code: number,
     _reason: string,
@@ -511,7 +520,7 @@ export class SignalSession extends DurableObject<Env> {
     )
   }
 
-  async webSocketError(socket: WebSocket, error: unknown): Promise<void> {
+  override async webSocketError(socket: WebSocket, error: unknown): Promise<void> {
     const attachment = this.attachmentForSocket(socket)
     console.error(
       JSON.stringify({
