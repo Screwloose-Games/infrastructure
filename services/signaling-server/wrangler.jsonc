@@ -1,0 +1,89 @@
+/**
+ * For more details on how to configure Wrangler, refer to:
+ * https://developers.cloudflare.com/workers/wrangler/configuration/
+ */
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "game-signaling",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-08-05",
+
+  // Publish to <worker-name>.<your-account-subdomain>.workers.dev.
+  // A custom domain is deliberately not required for this game-jam MVP.
+  "workers_dev": true,
+  "durable_objects": {
+    "bindings": [
+      {
+        // The existing Durable Object class; retain its identity across deploys.
+        "class_name": "SignalSession",
+        // The name used from Worker code: env.SIGNAL.
+        "name": "SIGNAL"
+      }
+    ]
+  },
+  // Apply these before a request can create or wake a session Durable Object.
+  // Namespace IDs only need to be unique within this Cloudflare account.
+  "ratelimits": [
+    {
+      "name": "HOST_CREATION_LIMIT",
+      "namespace_id": "2026080501",
+      "simple": {
+        "limit": 5,
+        "period": 60
+      }
+    },
+    {
+      "name": "SESSION_REQUEST_LIMIT",
+      "namespace_id": "2026080502",
+      "simple": {
+        "limit": 40,
+        "period": 10
+      }
+    }
+  ],
+  // Declare the existing Durable Object class with Wrangler's current
+  // declarative lifecycle configuration. Keeping this class name preserves the
+  // namespace created by the previous migrations-based configuration.
+  "exports": {
+    "SignalSession": {
+      "type": "durable-object",
+
+      // SQLite is Cloudflare's current storage backend for new DO classes.
+      // We are not using its persistent storage yet.
+      "storage": "sqlite"
+    }
+  },
+  "observability": {
+    "enabled": true
+  },
+  "upload_source_maps": true,
+  "compatibility_flags": ["nodejs_compat"]
+  /**
+   * Smart Placement
+   * https://developers.cloudflare.com/workers/configuration/smart-placement/#smart-placement
+   */
+  // "placement": {  "mode": "smart" }
+  /**
+   * Bindings
+   * Bindings allow your Worker to interact with resources on the Cloudflare Developer Platform, including
+   * databases, object storage, AI inference, real-time communication and more.
+   * https://developers.cloudflare.com/workers/runtime-apis/bindings/
+   */
+  /**
+   * Environment Variables
+   * https://developers.cloudflare.com/workers/wrangler/configuration/#environment-variables
+   * Note: Use secrets to store sensitive data.
+   * https://developers.cloudflare.com/workers/configuration/secrets/
+   */
+  // "vars": {  "MY_VARIABLE": "production_value" }
+  /**
+   * Static Assets
+   * https://developers.cloudflare.com/workers/static-assets/binding/
+   */
+  // "assets": {  "directory": "./public/",  "binding": "ASSETS" }
+  /**
+   * Service Bindings (communicate between multiple Workers)
+   * https://developers.cloudflare.com/workers/wrangler/configuration/#service-bindings
+   */
+  // "services": [  {   "binding": "MY_SERVICE",   "service": "my-service"  } ]
+}

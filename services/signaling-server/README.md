@@ -6,62 +6,65 @@ offers/answers and ICE candidates through it, then talk directly over WebRTC —
 gameplay traffic never touches this server.
 
 One Worker fronts a single Durable Object class, `SignalSession`. Each join code
-maps to its own DO instance via `env.SIGNAL.idFromName(code)`, so sessions are
-isolated with no provisioning step. All state is in memory and dies with the
-session; there is no database.
+maps to its own DO instance via `env.SIGNAL.getByName(code)`, so sessions are
+isolated with no provisioning step. Session state is limited to open WebSockets
+and their hibernation-safe attachments; there is no database or reconnectable
+session state.
 
 ## Endpoints
 
-| Route             | Behaviour                                          |
-| ----------------- | -------------------------------------------------- |
-| `GET /`           | `200 ok` — health check                            |
-| `/session/<code>` | WebSocket upgrade; joins the session for `<code>`  |
+| Route                   | Behaviour                                     |
+| ----------------------- | --------------------------------------------- |
+| `GET /health`           | `200 {"status":"ok"}` — health check         |
+| `GET /sessions/<code>`  | JSON status for the session                    |
+| `/sessions/<code>/host` | WebSocket upgrade; creates the host connection |
+| `/sessions/<code>/join` | WebSocket upgrade; joins a live host           |
 
-`<code>` is a **six-character** join code matching `[A-Za-z0-9_-]{6}`, matched
-case-insensitively so a code read off one screen and typed into another resolves
-to the same session. Anything that isn't six characters is a `404`.
+`<code>` is a **six-character**, case-insensitive join code matching
+`[A-HJ-NP-Z2-9]{6}`. The alphabet deliberately avoids ambiguous characters.
+Malformed codes are rejected with `400`.
 
 Rejections before the socket opens:
 
-| Status | Meaning                                    |
-| ------ | ------------------------------------------ |
-| `404`  | Not a valid six-character code             |
-| `426`  | Request was not a WebSocket upgrade        |
-| `403`  | Session already has two peers              |
+| Status | Meaning                                       |
+| ------ | --------------------------------------------- |
+| `400`  | Malformed session code                        |
+| `409`  | No host exists, or that host/client slot is full |
+| `426`  | Request was not a WebSocket upgrade           |
+| `429`  | Request rate limit exceeded                   |
 
 ## Protocol
 
-The first peer to join is the **host**, the second is the **client**. Roles are
-assigned by arrival order and never change.
+The host explicitly connects first; one client may then join. Roles are assigned
+by the endpoint and never change.
 
-The server sends JSON **control frames**, namespaced under `session/` so the
-game client can distinguish them from relayed WebRTC payloads:
+The server sends JSON lifecycle frames:
 
-| Frame                                            | Sent to | When                          |
-| ------------------------------------------------ | ------- | ----------------------------- |
-| `{"type":"session/joined","role":…,"peers":n}`    | joiner  | immediately on connect        |
-| `{"type":"session/peer-joined"}`                  | host    | the client connects           |
-| `{"type":"session/peer-left"}`                    | host    | the client disconnects        |
+| Frame                                               | Sent to | When                   |
+| --------------------------------------------------- | ------- | ---------------------- |
+| `{"type":"host_connected","session_code":…}`   | host    | immediately on connect |
+| `{"type":"client_connected","session_code":…}` | client  | immediately on connect |
+| `{"type":"client_joined","session_code":…}`    | host    | client connects        |
+| `{"type":"client_left","session_code":…}`      | host    | client disconnects     |
 
-`session/joined` is the "code accepted" signal the join UI waits on.
-
-**Everything else is relayed verbatim** to the other peer and never echoed back
-to the sender. The relay does not parse or validate payloads — put your
-offer/answer/ICE messages through unchanged.
+Client frames must be JSON objects with `type` `offer`, `answer`, or
+`ice_candidate`, plus an object `payload`. The Worker adds the trustworthy
+`from` role before relaying: hosts may offer, clients may answer, and either may
+send ICE candidates. Invalid frames receive `signal_rejected` and close with
+WebSocket policy code `1008`.
 
 Close codes:
 
 | Code   | Meaning                                                        |
 | ------ | -------------------------------------------------------------- |
 | `4000` | Host disconnected — the session is over                        |
-| `4001` | Message exceeded 64 KiB                                        |
+| `1008` | Invalid, oversized, or rate-limited signaling frame            |
 
 Losing the host ends the session, because the host owns the simulation. Losing
 the client does not: the host keeps playing solo and another client may join.
 
-Signaling messages are capped at **64 KiB**. Gameplay snapshots belong on the
-WebRTC data channel, and the cap makes a client that gets that wrong fail
-loudly instead of quietly routing game traffic through the server.
+Signaling messages are capped at **64 KiB UTF-8** and each socket may send 30
+messages per 10 seconds. Gameplay snapshots belong on the WebRTC data channel.
 
 ## Develop
 
@@ -73,11 +76,11 @@ pnpm --filter @repo/signaling-server test    # real Durable Objects, in-process
 Manual check against a running `wrangler dev` — open two terminals:
 
 ```sh
-npx wscat -c ws://localhost:8787/session/ABC123
+npx wscat -c ws://localhost:8787/sessions/ABC123/host
 ```
 
-Each prints a `session/joined` frame on connect; anything typed into one
-appears in the other.
+Connect the joiner at `/sessions/ABC123/join`. Each endpoint receives its
+connection frame, and the host receives `client_joined`.
 
 ## Deploy
 
@@ -92,13 +95,14 @@ npx wrangler tail                          # live logs
 Note the `run` in `pnpm run deploy`. Bare `pnpm deploy` is pnpm's own built-in
 command and will *not* invoke this script.
 
-Then verify against `wss://game-signaling.<your-subdomain>.workers.dev/session/ABC123`.
+Then verify `https://game-signaling.<your-subdomain>.workers.dev/health` and
+connect to `wss://game-signaling.<your-subdomain>.workers.dev/sessions/ABC123/host`.
 
 ## Constraints
 
-`SignalSession` (the DO class name) and the `v1` migration tag in
-`wrangler.toml` must stay stable across deploys — renaming the class later
-requires an explicit rename migration.
+`SignalSession` remains the deployed Durable Object class name. Its current
+`exports` declaration preserves the namespace created by the prior migration
+configuration; rename it only with an explicit Durable Object lifecycle change.
 
 This workspace does not use the shared `@repo/vitest-config`; see the comment in
 `vitest.config.ts` for why. Its `tsconfig.json` extends the shared *base* rather
@@ -112,5 +116,3 @@ than `node.json`, because Node globals conflict with the Workers runtime types.
   `accept()` is the natural place to add one.
 - **Reconnection.** Out of scope for the MVP, per `todo.md`.
 - **TURN relay.** STUN only; restrictive NAT / CGNAT will fail to connect.
-- **WebSocket Hibernation.** `state.acceptWebSocket()` would cut idle billing on
-  long-lived sessions.

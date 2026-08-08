@@ -4,9 +4,9 @@
   "compilerOptions": {
     "module": "esnext",
     "moduleResolution": "bundler",
-    "types": ["@cloudflare/workers-types", "@cloudflare/vitest-pool-workers/types"],
+    "types": ["@cloudflare/vitest-pool-workers/types"],
     "noEmit": true
   },
-  "include": ["src/**/*", "test/**/*", "vitest.config.ts"],
+  "include": ["src/**/*", "test/**/*", "vitest.config.ts", "worker-configuration.d.ts"],
   "exclude": ["node_modules", "dist"]
 }

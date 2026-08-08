@@ -7,7 +7,14 @@
   },
   "files": {
     "ignoreUnknown": true,
-    "includes": ["**", "!**/dist/**", "!**/.turbo/**", "!**/coverage/**", "!**/*.tsbuildinfo"]
+    "includes": [
+      "**",
+      "!**/dist/**",
+      "!**/.turbo/**",
+      "!**/coverage/**",
+      "!**/*.tsbuildinfo",
+      "!**/worker-configuration.d.ts"
+    ]
   },
   "formatter": {
     "enabled": true,
